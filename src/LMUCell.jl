@@ -27,13 +27,13 @@ function LegendreDelay(order, θ)
 end
 
 """ Zero-hold Discretization """
-function ZOH(A,B, order)
+function ZOH(A::AbstractArray, B::AbstractArray, order::Integer, dt::AbstractFloat)
     nx = order
     nu = 1
-    M = exp([A*1.  B*1.; zeros(nu, nx + nu)])
+    M = exp([A*dt  B*dt; zeros(nu, nx + nu)])
     Ad = M[1:nx, 1:nx] - Matrix(I, nx, nx)
     Bd = M[1:nx, nx+1:nx+nu]
-    A,B
+    Ad,Bd
 end
 
 struct LMUCellState{V}
@@ -78,7 +78,7 @@ function LMUCell(d,n,χ,Δt,θ, activation=tanh)::LMUCell
     Wₘ = XavierNormal(n, (n,d))
 
     A,B = LegendreDelay(d, θ-0.5)
-    A,B = ZOH(A,B,d)
+    A,B = ZOH(A,B,d, 1.)
 
     LMUCell(param(eₘ),param(eₓ),param(eₕ),param(Wₘ),param(Wₓ),param(Wₕ),A,B,activation,LMUCellState(zeros(n),zeros(d)))
 end
@@ -94,8 +94,6 @@ function (c::LMUCell)(state::LMUCellState, x::Union{AbstractArray,Number})::Tupl
     c.Wₕ * h +
     c.Wₘ * m
     )
-    @show h
-    @show m
     return LMUCellState(h,m), h
 end
 
