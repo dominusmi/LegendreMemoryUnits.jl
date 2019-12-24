@@ -10,6 +10,32 @@ function XavierNormal(fan_in::Integer, shape::Union{Integer,Tuple})::Array
     randn(shape...) * std
 end
 
+function LegendreDelay(order, θ)
+    A = zeros(order,order)
+    B = zeros(order)
+
+    for i in 0:(order-1)
+        for j in 0:(order-1)
+            _coef = i<j ? -1 : (-1)^(i-j+1)
+            A[i+1,j+1] = (2i+1) * _coef
+        end
+        B[i+1] = (2i+1) * (-1)^i
+    end
+    A = A * (1.0/(θ))
+    B = B * (1.0/(θ))
+    A,B
+end
+
+""" Zero-hold Discretization """
+function ZOH(A,B, order)
+    nx = order
+    nu = 1
+    M = exp([A*1.  B*1.; zeros(nu, nx + nu)])
+    Ad = M[1:nx, 1:nx] - Matrix(I, nx, nx)
+    Bd = M[1:nx, nx+1:nx+nu]
+    A,B
+end
+
 struct LMUCellState{V}
     h::V   # Hidden state
     m::V   # Memory state
@@ -51,18 +77,9 @@ function LMUCell(d,n,χ,Δt,θ, activation=tanh)::LMUCell
     Wₓ = zeros(n,χ)
     Wₘ = XavierNormal(n, (n,d))
 
-    A = zeros(d,d)
-    B = zeros(d)
+    A,B = LegendreDelay(d, θ-0.5)
+    A,B = ZOH(A,B,d)
 
-    for i in 0:(d-1)
-        for j in 0:(d-1)
-            _coef = i<j ? -1 : (-1)^(i-j+1)
-            A[i+1,j+1] = (2i+1) * _coef
-        end
-        B[i+1] = (2i+1) * (-1)^i
-    end
-    A = A * (1/(θ-0.5)) #+ Matrix(I, d, d)
-    B = B * (1/(θ-0.5))
     LMUCell(param(eₘ),param(eₓ),param(eₕ),param(Wₘ),param(Wₓ),param(Wₕ),A,B,activation,LMUCellState(zeros(n),zeros(d)))
 end
 
@@ -79,7 +96,7 @@ function (c::LMUCell)(state::LMUCellState, x::Union{AbstractArray,Number})::Tupl
     )
     @show h
     @show m
-    return LMUCellState(Tracker.data(h),Tracker.data(m)), h
+    return LMUCellState(h,m), h
 end
 
 # function infer(m::Flux.Recur,xs...)
