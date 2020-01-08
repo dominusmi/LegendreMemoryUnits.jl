@@ -7,7 +7,7 @@ function LegendrePolynomials(n)
         for q in legendre
             p = p - q * (polydot(q, p) / polydot(q,q))
         end
-        push!(legendre, p / p(1))
+        push!(legendre, p / p(1.))
     end
     return legendre
 end
